@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Shorts Anti-Slop Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      box-sizing: border-box;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 max-w-3xl mx-auto">
+
+  <!-- Header -->
+  <header class="mb-6 border-b border-slate-800 pb-4">
+    <h1 class="text-2xl font-bold text-emerald-400">⚡ Shorts Anti-Slop Studio</h1>
+    <p class="text-sm text-slate-400 mt-1">Công cụ tạo Prompt & lọc văn phong AI cho YouTube Shorts / TikTok View Ngoại</p>
+  </header>
+
+  <!-- Step 1: Prompt Builder -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 shadow-lg">
+    <h2 class="text-lg font-semibold text-white mb-3">1. Tạo Prompt Kịch Bản (Chuẩn Anti-Slop)</h2>
+    
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Chủ đề / Ngách (Nhập tiếng Anh hoặc Việt):</label>
+        <input id="topicInput" type="text" placeholder="VD: Stoicism, Dark Psychology, Strange History Fact..." 
+          class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">Tông giọng (Tone):</label>
+        <select id="toneInput" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="fast-paced, punchy, and mysterious">Nhanh, bí ẩn, cuốn hút (Hợp sự thật/Tâm lý)</option>
+          <option value="calm, direct, and philosophical">Trầm ấm, trực diện, sâu sắc (Hợp Stoicism/Động lực)</option>
+          <option value="shocking, urgent, and curiosity-inducing">Giật gân, khẩn cấp, kích thích tò mò</option>
+        </select>
+      </div>
+
+      <button onclick="generatePrompts()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 rounded-lg text-sm transition">
+        Tạo Bộ Prompt Hoàn Chỉnh
+      </button>
+    </div>
+
+    <!-- Output Prompt -->
+    <div id="promptResultBox" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-xs font-medium text-emerald-400">Prompt viết kịch bản (Copy dán vào Gemini/ChatGPT):</span>
+          <button onclick="copyText('scriptPromptOut')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-200">Copy</button>
+        </div>
+        <textarea id="scriptPromptOut" rows="6" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 font-mono"></textarea>
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-xs font-medium text-sky-400">Prompt tạo Nhạc nền 30s & Ảnh dọc (9:16):</span>
+          <button onclick="copyText('mediaPromptOut')" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-200">Copy</button>
+        </div>
+        <textarea id="mediaPromptOut" rows="4" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 font-mono"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: AI Slop Detector -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 shadow-lg">
+    <h2 class="text-lg font-semibold text-white mb-2">2. Máy Quét "AI Slop" (Kiểm tra kịch bản tiếng Anh)</h2>
+    <p class="text-xs text-slate-400 mb-3">Dán kịch bản tiếng Anh AI vừa viết vào đây để phát hiện các từ sáo rỗng khiến khán giả ngoại lướt bỏ:</p>
+    
+    <textarea id="scriptCheckInput" rows="5" placeholder="Paste your English script here to scan for AI slop words..."
+      oninput="checkSlop()"
+      class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-emerald-500"></textarea>
+
+    <div id="slopReport" class="mt-3 p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300">
+      Chưa có kịch bản. Hãy dán văn bản vào ô trên.
+    </div>
+  </section>
+
+  <script>
+    const SLOP_PATTERNS = [
+      { word: "delve", reason: "Từ AI dùng quá nhiều, người bản xứ rất ít nói trong video ngắn." },
+      { word: "foster", reason: "Từ mang tính học thuật sáo rỗng." },
+      { word: "leverage", reason: "Từ ngữ công sở nhàm chán." },
+      { word: "it's worth noting", reason: "Cụm từ câu giờ, làm giảm tỷ lệ giữ chân (retention)." },
+      { word: "importantly", reason: "Từ nối thừa thãi ở đầu câu." },
+      { word: "genuinely", reason: "Trạng từ sáo rỗng của AI." },
+      { word: "bottom line", reason: "Cụm từ kết luận rập khuôn." },
+      { word: "tapestry", reason: "Từ ẩn dụ sáo rỗng điển hình của AI." },
+      { word: "testament", reason: "Từ sáo rỗng." },
+      { word: "isn't about", reason: "Cấu trúc 'This isn't about X, it's about Y' bị lạm dụng." },
+      { word: "not about", reason: "Tránh cấu trúc so sánh phủ định rập khuôn 'X, not Y'." }
+    ];
+
+    function generatePrompts() {
+      const topic = document.getElementById('topicInput').value.trim() || "a mind-blowing psychology fact";
+      const tone = document.getElementById('toneInput').value;
+
+      const scriptPrompt = `Write a 40-second viral YouTube Shorts / TikTok voiceover script in plain, natural English about: "${topic}".
+Tone: ${tone}.
+
+STRICT WRITING RULES (ANTI-AI SLOP):
+1. State the main hook clearly in the very first sentence (under 3 seconds) to stop scrolling.
+2. Use plain, simple language: familiar words, concrete examples, and precise active verbs.
+3. NEVER use AI slop words or phrases: "delve", "foster", "leverage", "it's worth noting", "importantly", "genuinely", "Bottom Line:", "Question? Answer.", or contrastive framing like "This isn't about X. It's about Y."
+4. Format output as:
+   - [HOOK (0-3s)]: ...
+   - [BODY (3-35s)]: ...
+   - [CTA (35-40s)]: A short question to trigger comments.
+   - [VISUAL KEYWORDS]: 5 stock video search terms.`;
+
+      const mediaPrompt = `[IMAGE GENERATION - Orientation: Portrait (9:16)]: Cinematic, high-contrast vertical visual representing "${topic}", dramatic lighting, ultra-detailed, no text overlay.
+[MUSIC / AUDIO CUE - 30s Track]: Instrumental background track matching a ${tone} mood, subtle bass pulse, loopable for short-form video.`;
+
+      document.getElementById('scriptPromptOut').value = scriptPrompt;
+      document.getElementById('mediaPromptOut').value = mediaPrompt;
+      document.getElementById('promptResultBox').classList.remove('hidden');
+
+      try {
+        localStorage.setItem('last_topic', topic);
+      } catch (e) {}
+    }
+
+    function checkSlop() {
+      const text = document.getElementById('scriptCheckInput').value;
+      const reportEl = document.getElementById('slopReport');
+      if (!text.trim()) {
+        reportEl.innerHTML = "Chưa có kịch bản. Hãy dán văn bản vào ô trên.";
+        return;
+      }
+
+      const words = text.trim().split(/\s+/).length;
+      const estSeconds = Math.round(words / 2.5);
+      let found = [];
+
+      const lower = text.toLowerCase();
+      SLOP_PATTERNS.forEach(item => {
+        if (lower.includes(item.word)) {
+          found.push(`<li class="text-rose-400">⚠️ Phát hiện <b>"${item.word}"</b>: ${item.reason}</li>`);
+        }
+      });
+
+      let statusHtml = `<div class="mb-2 font-semibold text-slate-200">Số từ: ${words} từ (~${estSeconds} giây đọc)</div>`;
+      if (found.length === 0) {
+        statusHtml += `<div class="text-emerald-400 font-bold">✅ Kịch bản sạch! Không phát hiện từ vựng "AI Slop" bị cấm.</div>`;
+      } else {
+        statusHtml += `<div class="text-amber-400 font-bold mb-1">Phát hiện ${found.length} điểm cần sửa để giống người bản xứ hơn:</div><ul class="list-disc pl-4 space-y-1">${found.join('')}</ul>`;
+      }
+      reportEl.innerHTML = statusHtml;
+    }
+
+    function copyText(id) {
+      const el = document.getElementById(id);
+      el.select();
+      navigator.clipboard.writeText(el.value);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const saved = localStorage.getItem('last_topic');
+        if (saved) document.getElementById('topicInput').value = saved;
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>
